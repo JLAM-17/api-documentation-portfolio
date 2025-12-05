@@ -1,0 +1,2361 @@
+openapi: 3.1.0
+info:
+  title: Finnhub Stock API
+  version: 1.0.0
+  contact:
+    name: Juan Luis Ávila | Technical Writer
+    email: juanluis0217@gmail.com
+    url: https://github.com/JLAM-17
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  description: |
+    ## About This Documentation
+
+    This is a **portfolio sample** showcasing my technical writing capabilities. The documentation you're viewing demonstrates my approach to creating clear, developer-focused API references with interactive examples.
+    
+    I specialize in producing clean, concise documentation that balances technical accuracy with readability, and I adapt seamlessly to various frameworks including **Docusaurus** and custom static site generators. This documentation uses a straightforward structure for easy maintenance and deployment:
+
+    ```
+        Repository
+        └── documentation/
+            ├── index.html            
+            ├── openapi.yaml
+    ```
+
+    > [!SUCCESS]
+    > All endpoints documented on this site are fully functional: you can send real API requests directly using this website and see live responses. **Try it yourself**.
+
+    ### About Me
+
+    Software Engineer and Technical Writer specializing in developer documentation and API references. Lead technical documentation architect at a 1,200+ employee BPO serving Fortune 500 companies. Expert in creating clean, interactive documentation using modern static site generators with CI/CD pipelines. Strong foundation in REST APIs, web development, and storytelling techniques for developer-focused content.
+
+    ---
+
+    ## Overview
+
+    Finnhub is a comprehensive financial data API providing real-time market data, company fundamentals, and alternative data for stocks, forex, and cryptocurrencies. This documentation covers the **free tier endpoints** available to all registered users.
+
+    ## Key Features
+
+    The Finnhub API offers institutional-grade financial data designed for developers, traders, and fintech applications:
+
+    - **Real-time Market Data**: Live stock quotes, OHLCV candlestick data, and market status
+    - **Company Intelligence**: Company profiles, peer comparisons, and executive information
+    - **News & Events**: Market-wide and company-specific news with sentiment analysis
+    - **Calendar Data**: Earnings releases, IPO schedules, and economic events
+    - **Global Coverage**: Access to 60+ stock exchanges, 10 forex brokers, and 15+ crypto exchanges
+
+    ## Authentication
+
+    All API requests require authentication via API token. You can authenticate using either method:
+
+    **Method 1: Query Parameter (Simple)**
+    ```
+    GET /api/v1/quote?symbol=AAPL&token=YOUR_API_KEY
+    ```
+
+    **Method 2: Header Authentication (Recommended)**
+    ```
+    X-Finnhub-Token: YOUR_API_KEY
+    ```
+
+    > [!IMPORTANT]
+    > Obtain your free API key at [finnhub.io](https://finnhub.io). Never expose your API key in client-side code or public repositories.
+
+    ## Rate Limits
+
+    | Tier       | Requests/Minute | API Calls/Month | WebSocket Connections |
+    |------------|-----------------|-----------------|----------------------|
+    | Free       | 60              | Unlimited       | 1                    |
+    | All-in-One | 300             | Unlimited       | 50                   |
+    | Enterprise | Custom          | Unlimited       | Unlimited            |
+
+    > [!NOTE]  
+    > Free tier users are limited to 60 API calls per minute. Exceeding this limit will result in `429 Too Many Requests` responses. The `X-Ratelimit-Remaining` header indicates remaining calls.
+
+    ## Response Format
+
+    All successful responses return JSON with the requested data:
+
+    ```json
+    {
+      "c": 178.72,
+      "d": 2.54,
+      "dp": 1.4423,
+      "h": 179.63,
+      "l": 176.21,
+      "o": 176.48,
+      "pc": 176.18,
+      "t": 1705521600
+    }
+    ```
+
+    Error responses include an `error` field with a descriptive message:
+
+    ```json
+    {
+      "error": "Invalid API key"
+    }
+    ```
+
+    > [!TIP]  
+    > Always check for the presence of an `error` field in responses before processing data. Some endpoints return `no_data` status when data is unavailable.
+
+    ## Data Coverage
+
+    | Data Type | Coverage | Update Frequency |
+    |-----------|----------|------------------|
+    | US Stocks | NYSE, NASDAQ, AMEX | Real-time |
+    | International | 60+ exchanges | 15-min delayed |
+    | Forex | 10 major brokers | Real-time |
+    | Crypto | 15+ exchanges | Real-time |
+    | Fundamentals | Global companies | Daily |
+
+    ## Changelog
+
+    | Version | Date       | Changes                                         |
+    |---------|------------|-------------------------------------------------|
+    | 1.0.0   | 2025-01-15 | Initial documentation release                   |
+
+servers:
+  - url: https://finnhub.io/api/v1
+    description: Production server
+
+tags:
+  - name: Market Data
+    description: |
+      Real-time and historical market data including quotes, candlesticks, and market status.
+      
+      > [!TIP]  
+      > Use the `/quote` endpoint for current prices and `/stock/candle` for historical OHLCV data. Combine with `/market-status` to check if markets are open before making trading decisions.
+
+  - name: Stock Fundamentals
+    description: |
+      Company profiles, financial metrics, and fundamental analysis data.
+      
+      > [!NOTE]  
+      > Some fundamental data endpoints have premium-only fields. Free tier users receive a subset of available metrics.
+
+  - name: News
+    description: |
+      Market-wide and company-specific news articles with metadata.
+      
+      > [!IMPORTANT]  
+      > News data is available only for North American companies on the free tier.
+
+  - name: Calendar
+    description: |
+      Earnings releases, IPO schedules, and corporate events calendars.
+      
+      > [!TIP]  
+      > Use calendar endpoints to build event-driven trading strategies or alerting systems.
+
+  - name: Reference Data
+    description: |
+      Symbol lookup, exchange lists, and market metadata.
+
+paths:
+  /stock/market-status:
+    get:
+      operationId: getMarketStatus
+      tags:
+        - Market Data
+      summary: Get market status
+      description: |
+        Returns the current trading status for global stock exchanges, indicating whether markets are open, closed, or in a special session.
+
+        ## Use Cases
+
+        - **Trading Applications**: Determine if orders can be executed in real-time
+        - **Data Collection**: Schedule data fetching during market hours only
+        - **User Interfaces**: Display market status indicators to users
+
+        > [!NOTE]  
+        > Market status is updated in real-time. However, there may be a delay of up to 1 minute during market open/close transitions.
+
+        ## Status Values
+
+        | Status | Description |
+        |--------|-------------|
+        | `open` | Regular trading session is active |
+        | `closed` | Market is closed (weekends, holidays, after-hours) |
+        | `pre-market` | Pre-market trading session |
+        | `post-market` | After-hours trading session |
+
+        ### Example Request
+
+        ```bash
+        # Get market status for US exchanges
+        curl -X GET "https://finnhub.io/api/v1/stock/market-status?exchange=US&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: exchange
+          in: query
+          required: true
+          description: |
+            Exchange code to check market status.
+            
+            > [!TIP]  
+            > Use `US` for combined NYSE/NASDAQ status. For specific exchanges, use MIC codes like `XNYS` (NYSE) or `XNAS` (NASDAQ).
+          schema:
+            type: string
+          examples:
+            us_markets:
+              summary: United States markets
+              description: Check if NYSE/NASDAQ are open for trading US stocks like Apple, Microsoft, or Tesla. Use this when building trading apps for US equities or scheduling data collection during US market hours.
+              value: "US"
+            london:
+              summary: London Stock Exchange
+              description: Verify if LSE is open for UK stocks like HSBC or BP. Use this when trading European equities during London hours or coordinating with UK business hours.
+              value: "L"
+            tokyo:
+              summary: Tokyo Stock Exchange
+              description: Check TSE status for Japanese stocks like Toyota or Sony. Use this for Asia-Pacific trading strategies or when monitoring Asian market sessions.
+              value: "T"
+            hong_kong:
+              summary: Hong Kong Stock Exchange
+              description: Verify HKEX status for Hong Kong and Chinese stocks. Use this when trading in Asian markets or monitoring Greater China equities.
+              value: "HK"
+
+      responses:
+        '200':
+          description: Market status retrieved successfully
+          headers:
+            X-Ratelimit-Remaining:
+              description: Number of API calls remaining in current minute
+              schema:
+                type: integer
+              example: 58
+            X-Ratelimit-Reset:
+              description: Unix timestamp when the rate limit resets
+              schema:
+                type: integer
+              example: 1705521660
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketStatus'
+              examples:
+                market_open:
+                  summary: Market is open
+                  description: Returned during regular trading hours (9:30 AM - 4:00 PM ET). Use this to enable live trading features, show green status indicators, or fetch real-time quotes.
+                  value:
+                    exchange: "US"
+                    holiday: null
+                    isOpen: true
+                    session: "regular"
+                    timezone: "America/New_York"
+                    t: 1705521600
+                market_closed:
+                  summary: Market is closed (after hours)
+                  description: Returned when markets are closed outside trading hours, including evenings and weekends. Use this to disable trading buttons, show warning messages, or switch to delayed data mode.
+                  value:
+                    exchange: "US"
+                    holiday: null
+                    isOpen: false
+                    session: "closed"
+                    timezone: "America/New_York"
+                    t: 1705536000
+                market_holiday:
+                  summary: Market closed for holiday
+                  description: Returned on market holidays with the holiday name. Use this to display holiday information to users and explain why trading is unavailable.
+                  value:
+                    exchange: "US"
+                    holiday: "Martin Luther King Jr. Day"
+                    isOpen: false
+                    session: "closed"
+                    timezone: "America/New_York"
+                    t: 1705363200
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /stock/market-holiday:
+    get:
+      operationId: getMarketHoliday
+      tags:
+        - Market Data
+      summary: Get market holidays
+      description: |
+        Returns a list of holidays when stock exchanges are closed for the specified exchange.
+
+        ## Planning Considerations
+
+        Use this endpoint to:
+        - Build trading calendars that account for market closures
+        - Schedule automated tasks around holiday periods
+        - Display holiday information to users
+
+        > [!CAUTION]  
+        > Holiday schedules may change. Some exchanges announce additional closures or modified hours with short notice (e.g., for national mourning events). Consider implementing a refresh mechanism.
+
+        ### Example Request
+
+        ```bash
+        # Get US market holidays
+        curl -X GET "https://finnhub.io/api/v1/stock/market-holiday?exchange=US&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: exchange
+          in: query
+          required: true
+          description: |
+            Exchange code to retrieve holiday calendar.
+            
+            > [!NOTE]  
+            > Returns holidays for the current and next calendar year.
+          schema:
+            type: string
+          examples:
+            us:
+              summary: US markets (NYSE/NASDAQ)
+              description: Get US market holidays to plan trading schedules and avoid executing trades on closure days. Essential for automated trading systems and trading calendar applications.
+              value: "US"
+            uk:
+              summary: London Stock Exchange
+              description: Retrieve UK market holidays for British and European trading schedules. Use this when operating cross-border trading strategies.
+              value: "L"
+            germany:
+              summary: Frankfurt Stock Exchange
+              description: Check German market holidays for DAX trading and European market access. Important for EU trading operations.
+              value: "F"
+
+      responses:
+        '200':
+          description: Holiday calendar retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketHolidayResponse'
+              example:
+                data:
+                  - eventName: "New Year's Day"
+                    atDate: "2025-01-01"
+                    tradingHour: ""
+                  - eventName: "Martin Luther King Jr. Day"
+                    atDate: "2025-01-20"
+                    tradingHour: ""
+                  - eventName: "Presidents' Day"
+                    atDate: "2025-02-17"
+                    tradingHour: ""
+                  - eventName: "Good Friday"
+                    atDate: "2025-04-18"
+                    tradingHour: ""
+                  - eventName: "Thanksgiving Day (Early Close)"
+                    atDate: "2025-11-28"
+                    tradingHour: "1:00PM"
+                  - eventName: "Christmas Day"
+                    atDate: "2025-12-25"
+                    tradingHour: ""
+                exchange: "US"
+                timezone: "America/New_York"
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /quote:
+    get:
+      operationId: getQuote
+      tags:
+        - Market Data
+      summary: Get real-time quote
+      description: |
+        Returns real-time quote data for US stocks. For international stocks, data is delayed by 15 minutes.
+
+        ## Response Fields Explained
+
+        | Field | Name | Description |
+        |-------|------|-------------|
+        | `c` | Current Price | Latest traded price |
+        | `d` | Change | Price change from previous close |
+        | `dp` | Percent Change | Percentage change from previous close |
+        | `h` | High | Session high price |
+        | `l` | Low | Session low price |
+        | `o` | Open | Session opening price |
+        | `pc` | Previous Close | Previous session closing price |
+        | `t` | Timestamp | Unix timestamp of the quote |
+
+        > [!IMPORTANT]  
+        > Quote data is real-time for US stocks during market hours. After-hours quotes may not reflect all extended trading activity.
+
+        ## Pre/Post Market Data
+
+        During extended hours sessions:
+        - `c` reflects the latest trade (may be from pre/post market)
+        - `h` and `l` only include regular session data
+        - `o` is the regular session open
+
+        > [!TIP]  
+        > For comprehensive pre/post market data, consider upgrading to a premium subscription.
+
+        ### Example Requests
+
+        ```bash
+        # Get quote for Apple Inc.
+        curl -X GET "https://finnhub.io/api/v1/quote?symbol=AAPL&token=YOUR_API_KEY"
+
+        # Get quote using header authentication
+        curl -X GET "https://finnhub.io/api/v1/quote?symbol=MSFT" \
+          -H "X-Finnhub-Token: YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          description: |
+            Stock symbol (ticker).
+            
+            > [!NOTE]  
+            > Use uppercase symbols. For international stocks, append the exchange suffix (e.g., `SAP.DE` for SAP on Frankfurt).
+          schema:
+            type: string
+            pattern: "^[A-Z0-9.]+$"
+          examples:
+            apple:
+              summary: Apple Inc. (NASDAQ)
+              description: Get real-time price for AAPL stock. Use this when building portfolio trackers, displaying current stock prices, or monitoring tech sector performance.
+              value: "AAPL"
+            microsoft:
+              summary: Microsoft Corporation (NASDAQ)
+              description: Retrieve Microsoft's current trading price. Use this for enterprise software sector analysis or cloud computing stock comparisons.
+              value: "MSFT"
+            berkshire:
+              summary: Berkshire Hathaway Class B (NYSE)
+              value: "BRK.B"
+              description: Get quote for Berkshire Hathaway Class B shares (note the dot notation). Use this when tracking Warren Buffett's conglomerate or for financial sector analysis.
+            sap_germany:
+              summary: SAP SE (Frankfurt)
+              description: Fetch quote for SAP on the Frankfurt exchange (note the .DE suffix for German listings). Use this when trading European tech stocks or comparing US vs EU market prices.
+              value: "SAP.DE"
+
+      responses:
+        '200':
+          description: Quote retrieved successfully
+          headers:
+            X-Ratelimit-Remaining:
+              description: Number of API calls remaining in current minute
+              schema:
+                type: integer
+              example: 57
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+              examples:
+                regular_trading:
+                  summary: During regular trading hours
+                  description: Stock gaining value during active trading. Use this to show positive price movements with green indicators, calculate portfolio gains, or trigger buy/sell alerts.
+                  value:
+                    c: 178.72
+                    d: 2.54
+                    dp: 1.4423
+                    h: 179.63
+                    l: 176.21
+                    o: 176.48
+                    pc: 176.18
+                    t: 1705521600
+                no_change:
+                  summary: Stock with no change
+                  description: Stock trading flat with no price movement. Use this to handle edge cases where d=0 and dp=0, avoiding division-by-zero errors in percentage calculations.
+                  value:
+                    c: 145.00
+                    d: 0
+                    dp: 0
+                    h: 145.50
+                    l: 144.80
+                    o: 145.00
+                    pc: 145.00
+                    t: 1705521600
+                market_closed:
+                  summary: After market close
+                  description: Last quote after market closure showing final prices. Use this to display end-of-day values, calculate daily performance, or show closing prices in portfolio summaries.
+                  value:
+                    c: 178.72
+                    d: 2.54
+                    dp: 1.4423
+                    h: 179.63
+                    l: 176.21
+                    o: 176.48
+                    pc: 176.18
+                    t: 1705536000
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /stock/candle:
+    get:
+      operationId: getStockCandles
+      tags:
+        - Market Data
+      summary: Get stock candlestick data
+      description: |
+        Returns historical OHLCV (Open, High, Low, Close, Volume) candlestick data for technical analysis and charting.
+
+        ## Data Availability
+
+        | Resolution | Free Tier | Premium |
+        |------------|-----------|---------|
+        | 1 minute | Last 1 month | Full history |
+        | 5 minute | Last 1 month | Full history |
+        | 15 minute | Last 1 month | Full history |
+        | 30 minute | Last 1 month | Full history |
+        | 60 minute | Last 1 month | Full history |
+        | Daily | 20+ years | 20+ years |
+        | Weekly | 20+ years | 20+ years |
+        | Monthly | 20+ years | 20+ years |
+
+        > [!NOTE]  
+        > Data for intraday resolutions (1, 5, 15, 30, 60) is limited to the last month for free tier users. Use daily (`D`), weekly (`W`), or monthly (`M`) resolutions for longer historical data.
+
+        ## Response Structure
+
+        The response contains parallel arrays where each index represents a single candle:
+        - `o[0]`, `h[0]`, `l[0]`, `c[0]`, `v[0]`, `t[0]` = First candle
+        - `o[1]`, `h[1]`, `l[1]`, `c[1]`, `v[1]`, `t[1]` = Second candle
+        - And so on...
+
+        > [!TIP]  
+        > Convert to a more convenient format using your language's zip/combine functions. Example in Python:
+        > ```python
+        > import pandas as pd
+        > df = pd.DataFrame(response)
+        > df['timestamp'] = pd.to_datetime(df['t'], unit='s')
+        > ```
+
+        ## Status Values
+
+        | Status | Meaning |
+        |--------|---------|
+        | `ok` | Data returned successfully |
+        | `no_data` | No data available for the requested range |
+
+        ### Example Requests
+
+        ```bash
+        # Get daily candles for AAPL (last 6 months)
+        curl -X GET "https://finnhub.io/api/v1/stock/candle?symbol=AAPL&resolution=D&from=1688169600&to=1704067200&token=YOUR_API_KEY"
+
+        # Get hourly candles for MSFT
+        curl -X GET "https://finnhub.io/api/v1/stock/candle?symbol=MSFT&resolution=60&from=1705363200&to=1705449600&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          description: Stock symbol (ticker)
+          schema:
+            type: string
+          example: "AAPL"
+        
+        - name: resolution
+          in: query
+          required: true
+          description: |
+            Candle resolution/timeframe.
+            
+            > [!WARNING]  
+            > Intraday resolutions (1, 5, 15, 30, 60) have limited historical data on free tier. Request only the data you need to avoid empty responses.
+          schema:
+            type: string
+            enum:
+              - "1"
+              - "5"
+              - "15"
+              - "30"
+              - "60"
+              - "D"
+              - "W"
+              - "M"
+          examples:
+            one_minute:
+              summary: 1-minute bars
+              description: Ultra-granular data for day trading and scalping strategies. Use this when building high-frequency trading charts or analyzing intraday volatility patterns. Limited to last 30 days on free tier.
+              value: "1"
+            five_minute:
+              summary: 5-minute bars
+              description: Detailed intraday data for active trading. Use this for swing trading analysis, identifying entry/exit points, or monitoring short-term price movements.
+              value: "5"
+            hourly:
+              summary: 60-minute (hourly) bars
+              description: Hourly price data for multi-day technical analysis. Use this when analyzing trading patterns across several days or building medium-term trading strategies.
+              value: "60"
+            daily:
+              summary: Daily bars (recommended)
+              description: Daily OHLCV data with 20+ years of history. Use this for long-term trend analysis, backtesting strategies, or building investment portfolio charts. Best choice for most use cases.
+              value: "D"
+            weekly:
+              summary: Weekly bars
+              description: Weekly aggregated data for long-term trend analysis. Use this when analyzing multi-year patterns, comparing seasonal trends, or building retirement portfolio trackers.
+              value: "W"
+            monthly:
+              summary: Monthly bars
+              description: Monthly candles for macro-level analysis. Use this for decade-spanning historical analysis, fundamental research, or long-term investment strategy backtesting.
+              value: "M"
+        
+        - name: from
+          in: query
+          required: true
+          description: |
+            Start timestamp (Unix epoch in seconds).
+            
+            > [!TIP]  
+            > Use online converters or your programming language to convert dates to Unix timestamps. Example: January 1, 2024 00:00:00 UTC = `1704067200`
+          schema:
+            type: integer
+            format: int64
+          example: 1704067200
+        
+        - name: to
+          in: query
+          required: true
+          description: |
+            End timestamp (Unix epoch in seconds).
+            
+            > [!CAUTION]  
+            > Requesting very large date ranges may result in slow responses or timeouts. For best performance, limit requests to 1 year of daily data or 1 month of intraday data.
+          schema:
+            type: integer
+            format: int64
+          example: 1705536000
+
+      responses:
+        '200':
+          description: Candlestick data retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockCandles'
+              examples:
+                daily_candles:
+                  summary: Daily candles with data
+                  description: Successful response with 5 days of OHLCV data in parallel arrays. Use this to plot candlestick charts, calculate technical indicators (RSI, MACD), or backtest trading strategies.
+                  value:
+                    c: [178.72, 179.23, 177.89, 180.95, 182.31]
+                    h: [179.63, 180.12, 179.45, 181.20, 183.05]
+                    l: [176.21, 177.80, 176.50, 178.90, 180.15]
+                    o: [176.48, 178.50, 179.10, 177.95, 181.00]
+                    s: "ok"
+                    t: [1705363200, 1705449600, 1705536000, 1705622400, 1705708800]
+                    v: [82456789, 75234567, 68123456, 71234567, 78345678]
+                no_data:
+                  summary: No data available
+                  description: Returned when no data exists for the requested date range (e.g., invalid symbol, future dates, or weekends only). Handle this by showing an error message or suggesting a different date range.
+                  value:
+                    s: "no_data"
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /stock/profile2:
+    get:
+      operationId: getCompanyProfile2
+      tags:
+        - Stock Fundamentals
+      summary: Get company profile
+      description: |
+        Returns general company information including industry classification, market capitalization, and contact details.
+
+        ## Lookup Methods
+
+        You can query a company using any of these identifiers:
+        
+        | Parameter | Format | Example |
+        |-----------|--------|---------|
+        | `symbol` | Ticker | `AAPL` |
+        | `isin` | ISIN code | `US0378331005` |
+        | `cusip` | CUSIP | `037833100` |
+
+        > [!NOTE]  
+        > Only one identifier is required. If multiple are provided, `symbol` takes precedence.
+
+        ## Response Notes
+
+        - `marketCapitalization` is in millions (e.g., `2850000` = $2.85 trillion)
+        - `shareOutstanding` is in millions of shares
+        - `ipo` format is `YYYY-MM-DD`
+        - Some fields may be empty for newer or smaller companies
+
+        > [!TIP]  
+        > Cache company profile data as it changes infrequently. A daily refresh is typically sufficient.
+
+        ### Example Requests
+
+        ```bash
+        # Query by symbol
+        curl -X GET "https://finnhub.io/api/v1/stock/profile2?symbol=AAPL&token=YOUR_API_KEY"
+
+        # Query by ISIN
+        curl -X GET "https://finnhub.io/api/v1/stock/profile2?isin=US0378331005&token=YOUR_API_KEY"
+
+        # Query by CUSIP
+        curl -X GET "https://finnhub.io/api/v1/stock/profile2?cusip=037833100&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: symbol
+          in: query
+          required: false
+          description: Stock symbol (ticker)
+          schema:
+            type: string
+          example: "AAPL"
+        
+        - name: isin
+          in: query
+          required: false
+          description: |
+            International Securities Identification Number (ISIN).
+            
+            > [!NOTE]  
+            > ISIN is a 12-character alphanumeric code. First two characters are the country code.
+          schema:
+            type: string
+            pattern: "^[A-Z]{2}[A-Z0-9]{10}$"
+          example: "US0378331005"
+        
+        - name: cusip
+          in: query
+          required: false
+          description: |
+            CUSIP number (9-character identifier for US/Canadian securities).
+          schema:
+            type: string
+            pattern: "^[A-Z0-9]{9}$"
+          example: "037833100"
+
+      responses:
+        '200':
+          description: Company profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyProfile2'
+              example:
+                country: "US"
+                currency: "USD"
+                estimateCurrency: "USD"
+                exchange: "NASDAQ NMS - GLOBAL MARKET"
+                finnhubIndustry: "Technology"
+                ipo: "1980-12-12"
+                logo: "https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/AAPL.png"
+                marketCapitalization: 2850000.50
+                name: "Apple Inc"
+                phone: "14089961010"
+                shareOutstanding: 15550.45
+                ticker: "AAPL"
+                weburl: "https://www.apple.com/"
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /stock/symbol:
+    get:
+      operationId: getStockSymbols
+      tags:
+        - Reference Data
+      summary: List stock symbols
+      description: |
+        Returns a list of supported stock symbols for a specified exchange.
+
+        ## Exchange Codes
+
+        | Code | Exchange | Country |
+        |------|----------|---------|
+        | `US` | NYSE, NASDAQ, AMEX | United States |
+        | `L` | London Stock Exchange | United Kingdom |
+        | `T` | Tokyo Stock Exchange | Japan |
+        | `HK` | Hong Kong Stock Exchange | Hong Kong |
+        | `SS` | Shanghai Stock Exchange | China |
+        | `SZ` | Shenzhen Stock Exchange | China |
+        | `F` | Frankfurt Stock Exchange | Germany |
+        | `PA` | Euronext Paris | France |
+        | `TO` | Toronto Stock Exchange | Canada |
+        | `AS` | Euronext Amsterdam | Netherlands |
+
+        > [!NOTE]  
+        > A complete list of supported exchanges is available at [finnhub.io/docs/api/stock-symbols](https://finnhub.io/docs/api/stock-symbols).
+
+        ## Response Fields
+
+        | Field | Description |
+        |-------|-------------|
+        | `symbol` | Trading symbol/ticker |
+        | `displaySymbol` | Display symbol (same as symbol for most exchanges) |
+        | `description` | Company name |
+        | `type` | Security type (Common Stock, ADR, ETF, etc.) |
+        | `mic` | Market Identifier Code |
+        | `figi` | OpenFIGI identifier |
+        | `currency` | Trading currency |
+
+        > [!TIP]  
+        > Filter the response by `type` field to get only common stocks, ETFs, or other security types as needed.
+
+        ### Example Request
+
+        ```bash
+        # Get all US stock symbols
+        curl -X GET "https://finnhub.io/api/v1/stock/symbol?exchange=US&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: exchange
+          in: query
+          required: true
+          description: Exchange code
+          schema:
+            type: string
+          examples:
+            us:
+              summary: United States
+              description: List all US stocks from NYSE, NASDAQ, and AMEX. Use this when building stock screeners, populating dropdown menus with available symbols, or creating watchlists of US equities.
+              value: "US"
+            uk:
+              summary: United Kingdom
+              description: Retrieve all London Stock Exchange symbols. Use this for UK market analysis, British stock screeners, or when expanding your trading platform to European markets.
+              value: "L"
+            japan:
+              summary: Japan
+              description: Get all Tokyo Stock Exchange listings. Use this for Asian market coverage, Japanese stock research, or building global portfolio applications.
+              value: "T"
+            germany:
+              summary: Germany
+              description: Access Frankfurt Stock Exchange symbols. Use this for European market access, DAX index analysis, or German equity trading applications.
+              value: "F"
+
+      responses:
+        '200':
+          description: Symbol list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockSymbol'
+              example:
+                - currency: "USD"
+                  description: "Apple Inc"
+                  displaySymbol: "AAPL"
+                  figi: "BBG000B9XRY4"
+                  mic: "XNAS"
+                  symbol: "AAPL"
+                  type: "Common Stock"
+                - currency: "USD"
+                  description: "Microsoft Corporation"
+                  displaySymbol: "MSFT"
+                  figi: "BBG000BPH459"
+                  mic: "XNAS"
+                  symbol: "MSFT"
+                  type: "Common Stock"
+                - currency: "USD"
+                  description: "SPDR S&P 500 ETF Trust"
+                  displaySymbol: "SPY"
+                  figi: "BBG000BDTBL9"
+                  mic: "ARCX"
+                  symbol: "SPY"
+                  type: "ETF"
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /search:
+    get:
+      operationId: symbolSearch
+      tags:
+        - Reference Data
+      summary: Symbol lookup
+      description: |
+        Search for best-matching symbols based on a query string. Supports searching by symbol, company name, ISIN, and CUSIP.
+
+        ## Search Behavior
+
+        The search engine matches against:
+        1. **Ticker symbols** (exact and prefix matches)
+        2. **Company names** (partial matches)
+        3. **ISIN codes** (exact matches)
+        4. **CUSIP numbers** (exact matches)
+
+        > [!TIP]  
+        > For best results, use the most specific identifier you have. ISIN/CUSIP searches return exact matches, while name searches may return multiple results.
+
+        ## Filtering Results
+
+        Use the `exchange` parameter to limit results to specific markets:
+
+        ```bash
+        # Search for "apple" only in US markets
+        curl -X GET "https://finnhub.io/api/v1/search?q=apple&exchange=US&token=YOUR_API_KEY"
+        ```
+
+        ### Example Requests
+
+        ```bash
+        # Search by company name
+        curl -X GET "https://finnhub.io/api/v1/search?q=apple&token=YOUR_API_KEY"
+
+        # Search by partial symbol
+        curl -X GET "https://finnhub.io/api/v1/search?q=TSLA&token=YOUR_API_KEY"
+
+        # Search by ISIN
+        curl -X GET "https://finnhub.io/api/v1/search?q=US0378331005&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: |
+            Search query. Can be:
+            - Company name (partial match): `apple`, `micro`
+            - Ticker symbol: `AAPL`, `MSFT`
+            - ISIN: `US0378331005`
+            - CUSIP: `037833100`
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          examples:
+            name_search:
+              summary: Search by company name
+              description: Find stocks when you know the company name but not the ticker. Use this for autocomplete search boxes, helping users discover tickers, or when importing portfolios with company names instead of symbols.
+              value: "apple"
+            symbol_search:
+              summary: Search by ticker
+              description: Verify a ticker symbol or find similar tickers. Use this when users type partial symbols (e.g., "TSL" to find "TSLA") or when validating user input in trading forms.
+              value: "TSLA"
+            isin_search:
+              summary: Search by ISIN
+              description: Look up stocks using international securities identification numbers. Use this when integrating with institutional systems, processing regulatory filings, or handling cross-border securities data.
+              value: "US0378331005"
+        
+        - name: exchange
+          in: query
+          required: false
+          description: |
+            Filter results by exchange code.
+            
+            > [!NOTE]  
+            > When not specified, returns matches from all supported exchanges.
+          schema:
+            type: string
+          example: "US"
+
+      responses:
+        '200':
+          description: Search results retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SymbolSearchResult'
+              examples:
+                multiple_results:
+                  summary: Search with multiple matches
+                  description: Returned when search term matches multiple securities (e.g., "apple" finds AAPL, APLE, and international listings). Use this to show a dropdown list for users to select the correct security.
+                  value:
+                    count: 3
+                    result:
+                      - description: "Apple Inc"
+                        displaySymbol: "AAPL"
+                        symbol: "AAPL"
+                        type: "Common Stock"
+                        primary: ["US"]
+                      - description: "Apple Hospitality REIT Inc"
+                        displaySymbol: "APLE"
+                        symbol: "APLE"
+                        type: "REIT"
+                        primary: ["US"]
+                      - description: "Apple Inc"
+                        displaySymbol: "APC.F"
+                        symbol: "APC.F"
+                        type: "Common Stock"
+                        primary: ["F"]
+                single_result:
+                  summary: Exact ISIN match
+                  description: Returned for precise ISIN searches that match exactly one security. Use this to auto-select the security or directly fetch additional data without user confirmation.
+                  value:
+                    count: 1
+                    result:
+                      - description: "Apple Inc"
+                        displaySymbol: "AAPL"
+                        symbol: "AAPL"
+                        type: "Common Stock"
+                        primary: ["US"]
+                no_results:
+                  summary: No matches found
+                  description: Returned when search query doesn't match any securities (e.g., typos, delisted stocks, or unsupported exchanges). Handle this by suggesting corrections or showing "No results found" message.
+                  value:
+                    count: 0
+                    result: []
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /news:
+    get:
+      operationId: getMarketNews
+      tags:
+        - News
+      summary: Get market news
+      description: |
+        Returns the latest market news articles. Use this endpoint for general financial news not specific to any company.
+
+        ## News Categories
+
+        | Category | Content |
+        |----------|---------|
+        | `general` | Broad market news, economic updates, policy changes |
+        | `forex` | Currency market news and analysis |
+        | `crypto` | Cryptocurrency market news |
+        | `merger` | M&A announcements and rumors |
+
+        > [!NOTE]  
+        > News articles are sourced from major financial news providers and are typically available within minutes of publication.
+
+        ## Response Pagination
+
+        The endpoint returns the 50 most recent articles by default. Use the `minId` parameter for pagination:
+
+        1. First request: `GET /news?category=general`
+        2. Note the smallest `id` in the response
+        3. Next request: `GET /news?category=general&minId=<smallest_id - 1>`
+
+        > [!TIP]  
+        > Implement a polling mechanism with the `minId` parameter to efficiently fetch only new articles since your last request.
+
+        ### Example Requests
+
+        ```bash
+        # Get latest general market news
+        curl -X GET "https://finnhub.io/api/v1/news?category=general&token=YOUR_API_KEY"
+
+        # Get cryptocurrency news
+        curl -X GET "https://finnhub.io/api/v1/news?category=crypto&token=YOUR_API_KEY"
+
+        # Pagination - get older news
+        curl -X GET "https://finnhub.io/api/v1/news?category=general&minId=12345&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: category
+          in: query
+          required: true
+          description: News category
+          schema:
+            type: string
+            enum:
+              - general
+              - forex
+              - crypto
+              - merger
+          example: "general"
+        
+        - name: minId
+          in: query
+          required: false
+          description: |
+            Minimum article ID for pagination.
+            
+            > [!NOTE]  
+            > Use this to fetch articles older than a specific ID. IDs are numeric and decrease for older articles.
+          schema:
+            type: integer
+          example: 12345
+
+      responses:
+        '200':
+          description: News articles retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NewsArticle'
+              example:
+                - category: "technology"
+                  datetime: 1705521600
+                  headline: "Fed Officials Signal Cautious Approach to Rate Cuts"
+                  id: 12350
+                  image: "https://example.com/image.jpg"
+                  related: ""
+                  source: "Reuters"
+                  summary: "Federal Reserve officials indicated they remain cautious about cutting interest rates too quickly..."
+                  url: "https://www.reuters.com/article/..."
+                - category: "market"
+                  datetime: 1705518000
+                  headline: "Tech Stocks Rally on Strong Earnings Reports"
+                  id: 12348
+                  image: "https://example.com/image2.jpg"
+                  related: ""
+                  source: "Bloomberg"
+                  summary: "Technology shares led a broad market rally Wednesday as several major companies reported..."
+                  url: "https://www.bloomberg.com/news/..."
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /company-news:
+    get:
+      operationId: getCompanyNews
+      tags:
+        - News
+      summary: Get company news
+      description: |
+        Returns the latest news articles specific to a company. Includes press releases, earnings announcements, analyst coverage, and other company-related news.
+
+        > [!IMPORTANT]  
+        > Company news is **only available for North American companies** (US and Canada) on the free tier.
+
+        ## Date Range
+
+        You must specify both `from` and `to` dates. The maximum allowed range is **1 year**.
+
+        > [!CAUTION]  
+        > Requesting large date ranges may return thousands of articles for actively covered companies. Consider using shorter ranges and implementing pagination.
+
+        ## Response Fields
+
+        | Field | Description |
+        |-------|-------------|
+        | `category` | News category (e.g., "company", "forex") |
+        | `datetime` | Publication timestamp (Unix epoch) |
+        | `headline` | Article headline/title |
+        | `image` | Thumbnail image URL (may be empty) |
+        | `related` | Related ticker symbol |
+        | `source` | News source name |
+        | `summary` | Article summary/excerpt |
+        | `url` | Full article URL |
+
+        ### Example Requests
+
+        ```bash
+        # Get Apple news for the last week
+        curl -X GET "https://finnhub.io/api/v1/company-news?symbol=AAPL&from=2025-01-08&to=2025-01-15&token=YOUR_API_KEY"
+
+        # Get Tesla news for January 2025
+        curl -X GET "https://finnhub.io/api/v1/company-news?symbol=TSLA&from=2025-01-01&to=2025-01-31&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          description: |
+            Stock symbol (ticker).
+            
+            > [!NOTE]  
+            > Only North American companies (US/Canada) are supported on the free tier.
+          schema:
+            type: string
+          example: "AAPL"
+        
+        - name: from
+          in: query
+          required: true
+          description: |
+            Start date for news search (inclusive).
+            
+            Format: `YYYY-MM-DD`
+          schema:
+            type: string
+            format: date
+          example: "2025-01-01"
+        
+        - name: to
+          in: query
+          required: true
+          description: |
+            End date for news search (inclusive).
+            
+            Format: `YYYY-MM-DD`
+            
+            > [!WARNING]  
+            > Maximum date range is 1 year from the `from` date.
+          schema:
+            type: string
+            format: date
+          example: "2025-01-15"
+
+      responses:
+        '200':
+          description: Company news retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NewsArticle'
+              example:
+                - category: "company"
+                  datetime: 1705449600
+                  headline: "Apple Announces New AI Features for iPhone"
+                  id: 15805925
+                  image: "https://example.com/apple-ai.jpg"
+                  related: "AAPL"
+                  source: "TechCrunch"
+                  summary: "Apple today announced a suite of new artificial intelligence features coming to iPhone..."
+                  url: "https://techcrunch.com/2025/01/16/apple-ai-features/"
+                - category: "company"
+                  datetime: 1705363200
+                  headline: "Apple Reports Record Q1 Revenue"
+                  id: 15805800
+                  image: "https://example.com/apple-earnings.jpg"
+                  related: "AAPL"
+                  source: "CNBC"
+                  summary: "Apple Inc. reported better-than-expected quarterly results..."
+                  url: "https://www.cnbc.com/2025/01/15/apple-earnings-q1.html"
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /calendar/earnings:
+    get:
+      operationId: getEarningsCalendar
+      tags:
+        - Calendar
+      summary: Get earnings calendar
+      description: |
+        Returns historical and upcoming earnings release dates with EPS estimates and actual results.
+
+        ## Data Included
+
+        | Field | Description |
+        |-------|-------------|
+        | `date` | Earnings release date |
+        | `epsActual` | Actual EPS (null if not yet reported) |
+        | `epsEstimate` | Consensus EPS estimate |
+        | `revenueActual` | Actual revenue (null if not yet reported) |
+        | `revenueEstimate` | Consensus revenue estimate |
+        | `hour` | Release timing (`bmo` = before market open, `amc` = after market close) |
+        | `quarter` | Fiscal quarter |
+        | `year` | Fiscal year |
+
+        > [!NOTE]  
+        > EPS and revenue figures are **non-GAAP** (adjusted) values, which exclude one-time items. These are the figures typically discussed by analysts and media.
+
+        ## Filtering Options
+
+        | Parameter | Use Case |
+        |-----------|----------|
+        | `symbol` | Get earnings for a specific company |
+        | `from` / `to` | Get all earnings within a date range |
+        | Both | Get specific company earnings within a date range |
+
+        > [!TIP]  
+        > For building earnings calendars, omit the `symbol` parameter and use `from`/`to` to get all companies reporting in a period.
+
+        ### Example Requests
+
+        ```bash
+        # Get upcoming earnings for AAPL
+        curl -X GET "https://finnhub.io/api/v1/calendar/earnings?symbol=AAPL&token=YOUR_API_KEY"
+
+        # Get all earnings for next week
+        curl -X GET "https://finnhub.io/api/v1/calendar/earnings?from=2025-01-20&to=2025-01-24&token=YOUR_API_KEY"
+
+        # Get historical earnings for MSFT in Q4 2024
+        curl -X GET "https://finnhub.io/api/v1/calendar/earnings?symbol=MSFT&from=2024-10-01&to=2024-12-31&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: symbol
+          in: query
+          required: false
+          description: |
+            Filter by stock symbol. If omitted, returns earnings for all companies in the date range.
+          schema:
+            type: string
+          example: "AAPL"
+        
+        - name: from
+          in: query
+          required: false
+          description: |
+            Start date for earnings search.
+            
+            Format: `YYYY-MM-DD`
+            
+            > [!NOTE]  
+            > If omitted, defaults to the current date.
+          schema:
+            type: string
+            format: date
+          example: "2025-01-15"
+        
+        - name: to
+          in: query
+          required: false
+          description: |
+            End date for earnings search.
+            
+            Format: `YYYY-MM-DD`
+            
+            > [!NOTE]  
+            > If omitted, defaults to 2 weeks from the current date.
+          schema:
+            type: string
+            format: date
+          example: "2025-01-31"
+        
+        - name: international
+          in: query
+          required: false
+          description: |
+            Include international companies.
+            
+            > [!NOTE]  
+            > Default is `false` (US companies only). Set to `true` for global coverage.
+          schema:
+            type: boolean
+            default: false
+          example: false
+
+      responses:
+        '200':
+          description: Earnings calendar retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EarningsCalendar'
+              examples:
+                upcoming_earnings:
+                  summary: Upcoming earnings (not yet reported)
+                  description: Shows future earnings releases with estimates (epsActual/revenueActual are null). Use this to build earnings calendars, set trading alerts before releases, or plan volatility strategies around earnings dates.
+                  value:
+                    earningsCalendar:
+                      - date: "2025-01-30"
+                        epsActual: null
+                        epsEstimate: 2.10
+                        hour: "amc"
+                        quarter: 1
+                        revenueActual: null
+                        revenueEstimate: 123500000000
+                        symbol: "AAPL"
+                        year: 2025
+                      - date: "2025-01-28"
+                        epsActual: null
+                        epsEstimate: 2.78
+                        hour: "amc"
+                        quarter: 2
+                        revenueActual: null
+                        revenueEstimate: 68200000000
+                        symbol: "MSFT"
+                        year: 2025
+                historical_earnings:
+                  summary: Historical earnings (reported)
+                  description: Shows past earnings with actual results. Use this to analyze earnings beats/misses (actual vs estimate), study historical performance patterns, or backtest earnings-based trading strategies.
+                  value:
+                    earningsCalendar:
+                      - date: "2024-10-31"
+                        epsActual: 1.64
+                        epsEstimate: 1.60
+                        hour: "amc"
+                        quarter: 4
+                        revenueActual: 94930000000
+                        revenueEstimate: 94320000000
+                        symbol: "AAPL"
+                        year: 2024
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /calendar/ipo:
+    get:
+      operationId: getIPOCalendar
+      tags:
+        - Calendar
+      summary: Get IPO calendar
+      description: |
+        Returns recent and upcoming Initial Public Offerings (IPOs) with pricing information and company details.
+
+        ## IPO Data Fields
+
+        | Field | Description |
+        |-------|-------------|
+        | `date` | Expected/actual IPO date |
+        | `exchange` | Target exchange |
+        | `name` | Company name |
+        | `numberOfShares` | Shares offered |
+        | `price` | Offering price (range or final) |
+        | `status` | IPO status (see below) |
+        | `symbol` | Trading symbol |
+        | `totalSharesValue` | Total offering value |
+
+        ## IPO Status Values
+
+        | Status | Description |
+        |--------|-------------|
+        | `expected` | IPO announced, pricing pending |
+        | `priced` | Pricing completed, awaiting trading |
+        | `filed` | S-1 filed, details preliminary |
+        | `withdrawn` | IPO canceled |
+
+        > [!CAUTION]  
+        > IPO dates and pricing are subject to change. Companies may postpone or cancel offerings. Always verify with official sources before making investment decisions.
+
+        > [!TIP]  
+        > Monitor high-value IPOs by sorting results by `totalSharesValue` in your application.
+
+        ### Example Requests
+
+        ```bash
+        # Get IPOs for January 2025
+        curl -X GET "https://finnhub.io/api/v1/calendar/ipo?from=2025-01-01&to=2025-01-31&token=YOUR_API_KEY"
+
+        # Get IPOs for next 7 days
+        curl -X GET "https://finnhub.io/api/v1/calendar/ipo?from=2025-01-15&to=2025-01-22&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: from
+          in: query
+          required: true
+          description: |
+            Start date for IPO calendar.
+            
+            Format: `YYYY-MM-DD`
+          schema:
+            type: string
+            format: date
+          example: "2025-01-01"
+        
+        - name: to
+          in: query
+          required: true
+          description: |
+            End date for IPO calendar.
+            
+            Format: `YYYY-MM-DD`
+            
+            > [!NOTE]  
+            > Maximum date range is typically 3 months for best performance.
+          schema:
+            type: string
+            format: date
+          example: "2025-01-31"
+
+      responses:
+        '200':
+          description: IPO calendar retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IPOCalendar'
+              example:
+                ipoCalendar:
+                  - date: "2025-01-22"
+                    exchange: "NASDAQ Global Select"
+                    name: "TechVenture AI Inc."
+                    numberOfShares: 15000000
+                    price: "18.00-20.00"
+                    status: "expected"
+                    symbol: "TVAI"
+                    totalSharesValue: 285000000
+                  - date: "2025-01-18"
+                    exchange: "NYSE"
+                    name: "GreenEnergy Solutions Corp."
+                    numberOfShares: 25000000
+                    price: "24.00"
+                    status: "priced"
+                    symbol: "GESC"
+                    totalSharesValue: 600000000
+                  - date: "2025-01-15"
+                    exchange: "NASDAQ Capital"
+                    name: "BioMed Therapeutics"
+                    numberOfShares: 5000000
+                    price: "12.00"
+                    status: "priced"
+                    symbol: "BIMT"
+                    totalSharesValue: 60000000
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /stock/peers:
+    get:
+      operationId: getCompanyPeers
+      tags:
+        - Stock Fundamentals
+      summary: Get company peers
+      description: |
+        Returns a list of peer companies based on industry classification, market capitalization, and other factors.
+
+        ## Peer Selection Criteria
+
+        Peers are selected based on:
+        1. **Industry Classification**: Same GICS sub-industry
+        2. **Market Cap Tier**: Similar size companies
+        3. **Business Model**: Comparable revenue sources
+        4. **Geographic Focus**: Regional market presence
+
+        > [!NOTE]  
+        > The list is curated by Finnhub and may include 10-20 peer companies. Very unique companies may have fewer peers.
+
+        ## Use Cases
+
+        - **Competitive Analysis**: Compare a company against its closest competitors
+        - **Portfolio Diversification**: Identify similar companies to avoid concentration
+        - **Sector Research**: Build a watchlist of related companies
+
+        > [!TIP]  
+        > Combine with `/stock/profile2` to get detailed information about each peer company.
+
+        ### Example Request
+
+        ```bash
+        # Get peers for Apple
+        curl -X GET "https://finnhub.io/api/v1/stock/peers?symbol=AAPL&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          description: Stock symbol (ticker)
+          schema:
+            type: string
+          example: "AAPL"
+
+      responses:
+        '200':
+          description: Peer companies retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                description: List of peer company ticker symbols
+                example:
+                  - "AAPL"
+                  - "DELL"
+                  - "WDC"
+                  - "HPE"
+                  - "SNDK"
+                  - "HPQ"
+                  - "NTAP"
+                  - "PSTG"
+                  - "SMCI"
+                  - "IONQ"
+                  - "QUBT"
+                  - "CMPO"
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /stock/metric:
+    get:
+      operationId: getBasicFinancials
+      tags:
+        - Stock Fundamentals
+      summary: Get basic financials
+      description: |
+        Returns key financial metrics including valuation ratios, profitability margins, growth rates, and price performance statistics.
+
+        ## Metric Categories
+
+        | Category | Metrics Included |
+        |----------|------------------|
+        | **Valuation** | P/E ratio, P/B ratio, P/S ratio, EV/EBITDA |
+        | **Profitability** | ROE, ROA, Gross margin, Operating margin, Net margin |
+        | **Growth** | Revenue growth (QoQ, YoY), EPS growth, Book value growth |
+        | **Price Performance** | 52-week high/low, YTD return, Beta |
+        | **Dividends** | Dividend yield, Payout ratio, Dividend growth |
+
+        > [!NOTE]  
+        > Use the `metric` parameter to specify which category of metrics to retrieve, or use `all` to get everything.
+
+        ## Metric Field Names
+
+        Field names follow a consistent pattern:
+        - `*Annual` - Full year metrics
+        - `*Quarterly` - Most recent quarter
+        - `*TTM` - Trailing twelve months
+        - `*5Y` - 5-year average
+
+        > [!TIP]  
+        > The `metric` object contains over 100 fields. Consider caching responses and refreshing daily for efficiency.
+
+        ### Example Requests
+
+        ```bash
+        # Get all metrics for Apple
+        curl -X GET "https://finnhub.io/api/v1/stock/metric?symbol=AAPL&metric=all&token=YOUR_API_KEY"
+
+        # Get valuation metrics only
+        curl -X GET "https://finnhub.io/api/v1/stock/metric?symbol=AAPL&metric=valuation&token=YOUR_API_KEY"
+        ```
+
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          description: Stock symbol (ticker)
+          schema:
+            type: string
+          example: "AAPL"
+        
+        - name: metric
+          in: query
+          required: true
+          description: |
+            Metric category to retrieve.
+            
+            > [!NOTE]  
+            > Use `all` to get the complete set of metrics, or specify a category for a smaller response.
+          schema:
+            type: string
+            enum:
+              - all
+              - price
+              - valuation
+              - margin
+          example: "all"
+
+      responses:
+        '200':
+          description: Financial metrics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BasicFinancials'
+              example:
+                metric:
+                  "10DayAverageTradingVolume": 62.37836
+                  "13WeekPriceReturnDaily": 12.5423
+                  "26WeekPriceReturnDaily": 18.7531
+                  "3MonthAverageTradingVolume": 1432.567
+                  "52WeekHigh": 199.62
+                  "52WeekHighDate": "2024-07-16"
+                  "52WeekLow": 164.08
+                  "52WeekLowDate": "2024-04-19"
+                  "52WeekPriceReturnDaily": 25.4321
+                  "5DayPriceReturnDaily": 2.1543
+                  "beta": 1.2876
+                  "bookValuePerShareAnnual": 4.382
+                  "bookValuePerShareQuarterly": 4.438
+                  "currentRatioAnnual": 0.988
+                  "currentRatioQuarterly": 0.923
+                  "dividendPerShareAnnual": 0.96
+                  "dividendYieldIndicatedAnnual": 0.5234
+                  "epsAnnual": 6.42
+                  "epsBasicExclExtraItemsAnnual": 6.42
+                  "epsTTM": 6.73
+                  "marketCapitalization": 2850000
+                  "netIncomeEmployeeAnnual": 0.0523
+                  "netProfitMarginAnnual": 25.31
+                  "operatingMarginAnnual": 29.82
+                  "payoutRatioAnnual": 14.9533
+                  "peAnnual": 27.82
+                  "peBasicExclExtraTTM": 26.56
+                  "peTTM": 26.56
+                  "pbAnnual": 40.78
+                  "pbQuarterly": 40.25
+                  "priceRelativeToS&P50052Week": 8.2341
+                  "priceSalesRatioAnnual": 7.43
+                  "priceSalesRatioTTM": 7.35
+                  "revenuePerShareAnnual": 24.12
+                  "revenuePerShareTTM": 24.34
+                  "roaRfy": 28.52
+                  "roaTTM": 29.13
+                  "roeRfy": 171.95
+                  "roeTTM": 160.58
+                  "totalDebtOverTotalEquityAnnual": 199.34
+                  "totalDebtOverTotalEquityQuarterly": 186.52
+                metricType: "all"
+                symbol: "AAPL"
+        
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+components:
+  securitySchemes:
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-Finnhub-Token
+      value: d4oep59r01quuso99l4gd4oep59r01quuso99l50
+      description: |
+        API key passed in request header (recommended).
+
+        > [!TIP]
+        > Header authentication is more secure as it doesn't expose your API key in URLs, browser history, or server access logs.
+
+        **Test Token:** `demo_api_key_123456789`
+
+    apiKeyQuery:
+      type: apiKey
+      in: query
+      name: token
+      description: |
+        API key passed as a query parameter.
+        
+        > [!WARNING]  
+        > Query parameter authentication exposes your API key in URLs and server logs. Use header authentication for production applications.      
+
+  schemas:
+    MarketStatus:
+      type: object
+      description: |
+        Current market status information for an exchange.
+        
+        > [!NOTE]  
+        > The `session` field provides more granular status than the boolean `isOpen` field.
+      properties:
+        exchange:
+          type: string
+          description: Exchange code
+          example: "US"
+        holiday:
+          type: string
+          nullable: true
+          description: Holiday name if market is closed for a holiday, null otherwise
+          example: null
+        isOpen:
+          type: boolean
+          description: Whether the market is currently open for trading
+          example: true
+        session:
+          type: string
+          description: |
+            Current trading session type:
+            - `regular`: Normal trading hours
+            - `pre-market`: Pre-market session
+            - `post-market`: After-hours session
+            - `closed`: Market is closed
+          enum:
+            - regular
+            - pre-market
+            - post-market
+            - closed
+          example: "regular"
+        timezone:
+          type: string
+          description: Exchange timezone (IANA format)
+          example: "America/New_York"
+        t:
+          type: integer
+          format: int64
+          description: Current Unix timestamp
+          example: 1705521600
+
+    MarketHolidayResponse:
+      type: object
+      description: Market holiday calendar response
+      properties:
+        data:
+          type: array
+          description: List of holidays
+          items:
+            $ref: '#/components/schemas/MarketHoliday'
+        exchange:
+          type: string
+          description: Exchange code
+          example: "US"
+        timezone:
+          type: string
+          description: Exchange timezone
+          example: "America/New_York"
+
+    MarketHoliday:
+      type: object
+      description: |
+        Individual market holiday entry.
+        
+        > [!NOTE]  
+        > The `tradingHour` field indicates early close times. Empty string means full closure.
+      properties:
+        eventName:
+          type: string
+          description: Holiday name
+          example: "Independence Day"
+        atDate:
+          type: string
+          format: date
+          description: Holiday date
+          example: "2025-07-04"
+        tradingHour:
+          type: string
+          description: |
+            Early close time if applicable.
+            - Empty string: Full day closure
+            - Time value (e.g., "1:00PM"): Early close time
+          example: ""
+
+    Quote:
+      type: object
+      description: |
+        Real-time stock quote data.
+        
+        > [!IMPORTANT]  
+        > Field names are single characters to minimize payload size. See field descriptions for meanings.
+      properties:
+        c:
+          type: number
+          format: float
+          description: Current price (last trade)
+          example: 178.72
+        d:
+          type: number
+          format: float
+          description: Change (current price - previous close)
+          example: 2.54
+        dp:
+          type: number
+          format: float
+          description: Percent change from previous close
+          example: 1.4423
+        h:
+          type: number
+          format: float
+          description: High price of the day
+          example: 179.63
+        l:
+          type: number
+          format: float
+          description: Low price of the day
+          example: 176.21
+        o:
+          type: number
+          format: float
+          description: Open price of the day
+          example: 176.48
+        pc:
+          type: number
+          format: float
+          description: Previous close price
+          example: 176.18
+        t:
+          type: integer
+          format: int64
+          description: Timestamp of the quote (Unix epoch)
+          example: 1705521600
+
+    StockCandles:
+      type: object
+      description: |
+        Historical OHLCV candlestick data.
+        
+        > [!NOTE]  
+        > All arrays have the same length. Use array index to correlate values across fields.
+      properties:
+        c:
+          type: array
+          items:
+            type: number
+            format: float
+          description: Close prices array
+          example: [178.72, 179.23, 177.89]
+        h:
+          type: array
+          items:
+            type: number
+            format: float
+          description: High prices array
+          example: [179.63, 180.12, 179.45]
+        l:
+          type: array
+          items:
+            type: number
+            format: float
+          description: Low prices array
+          example: [176.21, 177.80, 176.50]
+        o:
+          type: array
+          items:
+            type: number
+            format: float
+          description: Open prices array
+          example: [176.48, 178.50, 179.10]
+        s:
+          type: string
+          description: |
+            Response status:
+            - `ok`: Data returned successfully
+            - `no_data`: No data available for the requested range
+          enum:
+            - ok
+            - no_data
+          example: "ok"
+        t:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Timestamps array (Unix epoch)
+          example: [1705363200, 1705449600, 1705536000]
+        v:
+          type: array
+          items:
+            type: integer
+            format: int64
+          description: Volume array
+          example: [82456789, 75234567, 68123456]
+
+    CompanyProfile2:
+      type: object
+      description: |
+        Company profile information.
+        
+        > [!TIP]  
+        > Use this data to build company information pages or screening tools.
+      properties:
+        country:
+          type: string
+          description: Country of headquarters (ISO 3166-1 alpha-2)
+          example: "US"
+        currency:
+          type: string
+          description: Stock trading currency
+          example: "USD"
+        estimateCurrency:
+          type: string
+          description: Currency used for estimates
+          example: "USD"
+        exchange:
+          type: string
+          description: Primary exchange name
+          example: "NASDAQ NMS - GLOBAL MARKET"
+        finnhubIndustry:
+          type: string
+          description: Finnhub industry classification
+          example: "Technology"
+        ipo:
+          type: string
+          format: date
+          description: IPO date
+          example: "1980-12-12"
+        logo:
+          type: string
+          format: uri
+          description: Company logo URL
+          example: "https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/AAPL.png"
+        marketCapitalization:
+          type: number
+          format: float
+          description: |
+            Market capitalization in millions.
+            
+            > [!NOTE]  
+            > Divide by 1,000 to get trillions for mega-cap companies.
+          example: 2850000.50
+        name:
+          type: string
+          description: Company legal name
+          example: "Apple Inc"
+        phone:
+          type: string
+          description: Company phone number
+          example: "14089961010"
+        shareOutstanding:
+          type: number
+          format: float
+          description: Shares outstanding in millions
+          example: 15550.45
+        ticker:
+          type: string
+          description: Stock ticker symbol
+          example: "AAPL"
+        weburl:
+          type: string
+          format: uri
+          description: Company website URL
+          example: "https://www.apple.com/"
+
+    StockSymbol:
+      type: object
+      description: Stock symbol information from an exchange
+      properties:
+        currency:
+          type: string
+          description: Trading currency
+          example: "USD"
+        description:
+          type: string
+          description: Company or security name
+          example: "Apple Inc"
+        displaySymbol:
+          type: string
+          description: Display symbol
+          example: "AAPL"
+        figi:
+          type: string
+          description: OpenFIGI identifier
+          example: "BBG000B9XRY4"
+        mic:
+          type: string
+          description: Market Identifier Code
+          example: "XNAS"
+        symbol:
+          type: string
+          description: Trading symbol
+          example: "AAPL"
+        type:
+          type: string
+          description: |
+            Security type:
+            - `Common Stock`: Regular equity shares
+            - `ADR`: American Depositary Receipt
+            - `ETF`: Exchange-Traded Fund
+            - `REIT`: Real Estate Investment Trust
+            - `Unit`: Trust units or similar
+          example: "Common Stock"
+
+    SymbolSearchResult:
+      type: object
+      description: Symbol search response
+      properties:
+        count:
+          type: integer
+          description: Total number of matching results
+          example: 3
+        result:
+          type: array
+          description: Matching symbols
+          items:
+            type: object
+            properties:
+              description:
+                type: string
+                description: Company name
+                example: "Apple Inc"
+              displaySymbol:
+                type: string
+                description: Display symbol
+                example: "AAPL"
+              symbol:
+                type: string
+                description: Trading symbol
+                example: "AAPL"
+              type:
+                type: string
+                description: Security type
+                example: "Common Stock"
+              primary:
+                type: array
+                items:
+                  type: string
+                description: Primary exchange codes
+                example: ["US"]
+
+    NewsArticle:
+      type: object
+      description: |
+        News article metadata.
+        
+        > [!NOTE]  
+        > The `summary` field contains a brief excerpt. Access the full article via the `url` field.
+      properties:
+        category:
+          type: string
+          description: News category
+          example: "company"
+        datetime:
+          type: integer
+          format: int64
+          description: Publication timestamp (Unix epoch)
+          example: 1705521600
+        headline:
+          type: string
+          description: Article headline
+          example: "Apple Announces New Product Launch"
+        id:
+          type: integer
+          format: int64
+          description: |
+            Unique article ID.
+            
+            > [!TIP]  
+            > Use this ID with the `minId` parameter for pagination.
+          example: 12345
+        image:
+          type: string
+          format: uri
+          description: Thumbnail image URL (may be empty)
+          example: "https://example.com/image.jpg"
+        related:
+          type: string
+          description: Related ticker symbol (for company news)
+          example: "AAPL"
+        source:
+          type: string
+          description: News source name
+          example: "Reuters"
+        summary:
+          type: string
+          description: Article summary/excerpt
+          example: "Apple Inc. today announced a new lineup of products..."
+        url:
+          type: string
+          format: uri
+          description: Full article URL
+          example: "https://www.reuters.com/technology/apple-announces..."
+
+    EarningsCalendar:
+      type: object
+      description: Earnings calendar response
+      properties:
+        earningsCalendar:
+          type: array
+          description: List of earnings events
+          items:
+            $ref: '#/components/schemas/EarningsEvent'
+
+    EarningsEvent:
+      type: object
+      description: |
+        Individual earnings release event.
+        
+        > [!NOTE]  
+        > `epsActual` and `revenueActual` are null for upcoming earnings that haven't been reported yet.
+      properties:
+        date:
+          type: string
+          format: date
+          description: Earnings release date
+          example: "2025-01-30"
+        epsActual:
+          type: number
+          format: float
+          nullable: true
+          description: Actual reported EPS (null if not yet reported)
+          example: 2.18
+        epsEstimate:
+          type: number
+          format: float
+          description: Consensus EPS estimate
+          example: 2.10
+        hour:
+          type: string
+          description: |
+            Release timing:
+            - `bmo`: Before market open
+            - `amc`: After market close
+            - `dmh`: During market hours
+          enum:
+            - bmo
+            - amc
+            - dmh
+          example: "amc"
+        quarter:
+          type: integer
+          description: Fiscal quarter (1-4)
+          example: 1
+        revenueActual:
+          type: number
+          format: float
+          nullable: true
+          description: Actual reported revenue (null if not yet reported)
+          example: 123500000000
+        revenueEstimate:
+          type: number
+          format: float
+          description: Consensus revenue estimate
+          example: 121500000000
+        symbol:
+          type: string
+          description: Stock symbol
+          example: "AAPL"
+        year:
+          type: integer
+          description: Fiscal year
+          example: 2025
+
+    IPOCalendar:
+      type: object
+      description: IPO calendar response
+      properties:
+        ipoCalendar:
+          type: array
+          description: List of IPO events
+          items:
+            $ref: '#/components/schemas/IPOEvent'
+
+    IPOEvent:
+      type: object
+      description: |
+        Individual IPO event.
+        
+        > [!CAUTION]  
+        > IPO details are preliminary and subject to change. Verify with official filings before making investment decisions.
+      properties:
+        date:
+          type: string
+          format: date
+          description: Expected/actual IPO date
+          example: "2025-01-22"
+        exchange:
+          type: string
+          description: Target exchange
+          example: "NASDAQ Global Select"
+        name:
+          type: string
+          description: Company name
+          example: "TechVenture AI Inc."
+        numberOfShares:
+          type: integer
+          format: int64
+          description: Number of shares offered
+          example: 15000000
+        price:
+          type: string
+          description: |
+            Offering price or price range.
+            
+            > [!NOTE]  
+            > Format is either a single price (`"18.00"`) or a range (`"18.00-20.00"`)
+          example: "18.00-20.00"
+        status:
+          type: string
+          description: |
+            IPO status:
+            - `expected`: Announced, pricing pending
+            - `priced`: Pricing completed
+            - `filed`: S-1 filed, preliminary
+            - `withdrawn`: Canceled
+          enum:
+            - expected
+            - priced
+            - filed
+            - withdrawn
+          example: "expected"
+        symbol:
+          type: string
+          description: Trading symbol
+          example: "TVAI"
+        totalSharesValue:
+          type: integer
+          format: int64
+          description: Total offering value in USD
+          example: 285000000
+
+    BasicFinancials:
+      type: object
+      description: |
+        Basic financial metrics response.
+        
+        > [!NOTE]  
+        > The `metric` object contains a large number of fields. Not all fields are available for all companies.
+      properties:
+        metric:
+          type: object
+          description: Dictionary of financial metrics
+          additionalProperties:
+            oneOf:
+              - type: number
+              - type: string
+              - type: "null"
+        metricType:
+          type: string
+          description: Requested metric type
+          example: "all"
+        symbol:
+          type: string
+          description: Stock symbol
+          example: "AAPL"
+
+    ErrorResponse:
+      type: object
+      description: |
+        Standard error response format.
+        
+        > [!TIP]  
+        > Check for the `error` field to detect and handle API errors gracefully.
+      properties:
+        error:
+          type: string
+          description: Error message describing the issue
+          example: "Invalid API key"
+
+  responses:
+    Unauthorized:
+      description: |
+        Authentication failed.
+        
+        > [!IMPORTANT]  
+        > Verify your API key is correct and hasn't been revoked. Keys can be managed at [finnhub.io/dashboard](https://finnhub.io/dashboard).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            invalid_key:
+              summary: Invalid API key
+              description: Returned when API key is malformed or doesn't exist. Check your API key at finnhub.io/dashboard and verify it's correctly configured in your application.
+              value:
+                error: "Invalid API key"
+            missing_key:
+              summary: Missing API key
+              description: Returned when no authentication is provided (missing both header and query parameter). Ensure you're passing your API key in either X-Finnhub-Token header or token query parameter.
+              value:
+                error: "You don't have access to this resource."
+
+    RateLimitExceeded:
+      description: |
+        API rate limit exceeded.
+        # 
+        > [!NOTE]  
+        > Free tier allows 60 requests per minute. Wait for the rate limit to reset or upgrade your plan.
+      headers:
+        X-Ratelimit-Remaining:
+          description: Requests remaining (will be 0)
+          schema:
+            type: integer
+          example: 0
+        X-Ratelimit-Reset:
+          description: Unix timestamp when limit resets
+          schema:
+            type: integer
+          example: 1705521660
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "API limit reached. Please try again later. You have 60 API calls per minute."
+
+security:
+  - apiKeyHeader: ["d4oep59r01quuso99l4gd4oep59r01quuso99l50"]
+  - apiKeyQuery: []

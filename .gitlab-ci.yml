@@ -1,0 +1,15 @@
+stages:
+  - deploy
+
+pages:
+  stage: deploy
+  image: alpine:latest
+  script:
+    - mkdir -p public
+    - cp index.html public/
+    - cp openapi.yaml public/
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
